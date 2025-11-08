@@ -57,12 +57,13 @@ class TronEnv:
         self.p2_dead = False
         self.turn = 0
         
-    def reset(self, start_mode="mirror"):
+    def reset(self, start_mode="mirror", who="p1"):
         """
         Reset the environment to initial state.
         
         Args:
             start_mode: Starting mode (currently only "mirror" supported)
+            who: Perspective for observation ('p1' or 'p2')
             
         Returns:
             obs: Initial observation tensor
@@ -89,16 +90,17 @@ class TronEnv:
         self.p2_dead = False
         self.turn = 0
         
-        # Return observation from p1's perspective
-        return self._get_obs('p1')
+        # Return observation from specified player's perspective
+        return self._get_obs(who)
     
-    def step(self, action_my, action_opp):
+    def step(self, action_my, action_opp, who="p1"):
         """
         Execute one step with simultaneous movement.
         
         Args:
             action_my: Action for 'p1' (0=Up, 1=Right, 2=Down, 3=Left)
             action_opp: Action for 'p2'
+            who: Perspective for observation ('p1' or 'p2')
             
         Returns:
             obs: Observation tensor
@@ -154,8 +156,8 @@ class TronEnv:
             "turn": self.turn
         }
         
-        # Get observation from p1's perspective
-        obs = self._get_obs('p1')
+        # Get observation from specified player's perspective
+        obs = self._get_obs(who)
         
         return obs, reward_my, reward_opp, done, info
     
@@ -174,6 +176,14 @@ class TronEnv:
         
         for action in range(4):
             new_pos = self._compute_new_position(pos, action)
+            
+            # Special case: moving back onto current cell should not crash
+            # (This handles edge cases where current position might be marked)
+            if new_pos == pos:
+                legal.append(action)
+                continue
+            
+            # Otherwise use standard crash logic
             if not self._is_crash(new_pos):
                 legal.append(action)
         
@@ -289,6 +299,9 @@ class TronEnv:
         
         # Channel 2: free
         obs[2] = (self.grid == 0).astype(np.float32)
+        
+        # Heads remain part of the trail (occupied on grid), but we add separate
+        # head-only channels (3 and 4) for RL policy clarity. This is intentional.
         
         # Channel 3: my_head
         if my_pos is not None:

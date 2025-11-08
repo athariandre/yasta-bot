@@ -27,9 +27,12 @@ def reachable_area(grid, head):
     rows, cols = grid.shape
     visited = np.zeros((rows, cols), dtype=bool)
     
-    # If starting position is occupied, return 0
-    if grid[head] != 0:
-        return 0
+    # Treat the head cell as empty for purposes of calculating reachable area
+    # This ensures the heuristic bot won't produce degenerate evaluations
+    # when evaluating moves from positions that are already marked on the grid
+    temp_grid = grid.copy()
+    if temp_grid[head] != 0:
+        temp_grid[head] = 0
     
     queue = deque([head])
     visited[head] = True
@@ -50,8 +53,8 @@ def reachable_area(grid, head):
             if visited[new_row, new_col]:
                 continue
             
-            # Check if empty
-            if grid[new_row, new_col] != 0:
+            # Check if empty (using temp_grid where head is treated as empty)
+            if temp_grid[new_row, new_col] != 0:
                 continue
             
             # Mark as visited and add to queue

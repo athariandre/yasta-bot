@@ -32,6 +32,10 @@ def choose_action(env, me):
     # Determine opponent
     opp = 'p2' if me == 'p1' else 'p1'
     
+    # Compute opponent's reachable area before any move (for cut_cells calculation)
+    opp_pos_before = env.p1_pos if opp == 'p1' else env.p2_pos
+    area_opp_before = reachable_area(env.grid, opp_pos_before)
+    
     # Evaluate each legal move
     best_action = None
     best_score = None
@@ -76,9 +80,6 @@ def choose_action(env, me):
                 tunnel_penalty = 5
             
             # Cut bonus: cells reachable by opponent before but not after
-            # Calculate opponent's reachable area before the move
-            opp_pos_before = env.p1_pos if opp == 'p1' else env.p2_pos
-            area_opp_before = reachable_area(env.grid, opp_pos_before)
             cut_cells = max(0, area_opp_before - area_opp)
             cut_bonus = 1 * cut_cells
             
@@ -134,6 +135,8 @@ def _guess_opponent_move(env, opp, opp_legal):
     """
     Guess opponent's move: action that maximizes their reachable area.
     
+    Uses proper environment cloning and stepping to simulate opponent moves.
+    
     Args:
         env: TronEnv instance
         opp: 'p1' or 'p2'
@@ -152,21 +155,29 @@ def _guess_opponent_move(env, opp, opp_legal):
     best_area = None
     
     for action in opp_legal:
-        # Simulate opponent's move
-        opp_pos = env.p1_pos if opp == 'p1' else env.p2_pos
+        # Clone environment to simulate opponent's move
+        cloned = env.clone()
         
-        # Compute new position
-        from env import TronEnv
-        dr, dc = TronEnv.DIRECTIONS[action]
-        new_pos = (opp_pos[0] + dr, opp_pos[1] + dc)
+        # Step environment with opponent action
+        # Use dummy action (0) for the other player
+        if opp == 'p1':
+            # Opponent is p1, so action_my = action, action_opp = 0 (dummy)
+            cloned.step(action, 0)
+        else:
+            # Opponent is p2, so action_my = 0 (dummy), action_opp = action
+            cloned.step(0, action)
         
-        # Create temporary grid with opponent's move
-        temp_grid = env.grid.copy()
-        opp_id = 1 if opp == 'p1' else 2
-        temp_grid[new_pos] = opp_id
+        # Get opponent's position after move
+        opp_pos = cloned.p1_pos if opp == 'p1' else cloned.p2_pos
         
-        # Compute reachable area from new position
-        area = reachable_area(temp_grid, new_pos)
+        # Check if opponent crashed
+        opp_dead = cloned.p1_dead if opp == 'p1' else cloned.p2_dead
+        if opp_dead:
+            # Dead move has area 0
+            area = 0
+        else:
+            # Compute reachable area from new position
+            area = reachable_area(cloned.grid, opp_pos)
         
         # Update best action
         if best_action is None or area > best_area:
