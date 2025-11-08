@@ -176,14 +176,6 @@ class TronEnv:
         
         for action in range(4):
             new_pos = self._compute_new_position(pos, action)
-            
-            # Special case: moving back onto current cell should not crash
-            # (This handles edge cases where current position might be marked)
-            if new_pos == pos:
-                legal.append(action)
-                continue
-            
-            # Otherwise use standard crash logic
             if not self._is_crash(new_pos):
                 legal.append(action)
         
