@@ -27,3 +27,8 @@ htmlcov/
 *.log
 *.tmp
 /tmp/
+
+# Model files and training artifacts
+models/
+agent.py
+agent_weights.pth
